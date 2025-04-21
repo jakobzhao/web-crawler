@@ -1,8 +1,8 @@
-# Practical Exercise 2: Data collection using web crawler
+# Data collection using web crawler
 
-**Instructor:** Bo Zhao, zhaobo@uw.edu; **Points Available** = 50
+**Author:** Bo Zhao, 206.685.3846 or zhaobo@uw.edu; **Points Available** = 50
 
-In this practical exercise, we will introduce how to collect Twitter data using a web crawler. A web crawler is a purposely designed bot for online data collection. In most cases, online data can be acquired through a dedicated API maintained by the data provider. If no API available, you can still collect data by developing crawler using a crawler library (e.g. Selenium, Scrapy, etc.). In this practical exercise, we will design two crawlers, one is a generic crawler to harvest data from youtube, and the other can harvest data from Twitter API. Okay, let us get started!
+In this lab, we will introduce how to collect Twitter data using a web crawler. A web crawler is a purposely designed bot for online data collection. In most cases, online data can be acquired through a dedicated API maintained by the data provider. If no API available, you can still collect data by developing crawler using a crawler library (e.g. Selenium, Scrapy, etc.). In this practical exercise, we will design two crawlers, one is a generic crawler to harvest data from youtube, and the other can harvest data from Twitter API. Okay, let us get started!
 
 ## 1. Setup the Execution Environment on the Cloud
 
@@ -12,7 +12,7 @@ If you have used python for scientific research before, you must already experie
 
 This section will walk you through the process of making a generic web crawler. This crawler manipulates a browser using a python library named "Selenium". This library enables the crawler mimic how a human user visits and/or interacts with web pages. While viewing the web pages, the crawler monitors the data flows, parses the html structure, and extracts the requested data items. Below, we will introduce how to design a crawler to collect information from a group of youtube videos.
 
-Please launch the youtube crawler script by clicking this button [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jakobzhao/geog595/blob/master/03_bot/youtube.ipynb). This button will enable you to open the file [03_bot/youtube.ipynb](./youtube.ipynb) on Google Colab.
+Please launch the youtube crawler script by clicking this button [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jakobzhao/web-crawler/blob/master/youtube.ipynb). This button will enable you to open the file [youtube.ipynb](youtube.ipynb) on Google Colab.
 
 For any python script, metadata are usually stated at the very beginning.
 
@@ -193,141 +193,7 @@ print("the csv has been downloaded to your local computer. The program has been 
 
 ![](img/tweet-csv.png)
 
-## 3. Harvest geo-tagged tweets using a API-based Crawler
-
-Please launch this Twitter crawler script by clicking this button [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jakobzhao/geog595/blob/master/03_bot/tweets.ipynb). This button will enable you to open the file [03_bot/tweets.ipynb](./tweets.ipynb) on Google Colab.
-
-### 3.1 prerequisite libraries and Twitter developer token
-
-In this section, we will make a Twitter crawler to collect geotagged tweets. This crawler is based on `Tweepy` - a python based library which wraps the Twitter API. Tweepy provides a series of data crawling strategies - Harvesting geotagged tweets is just one of them. If you are interested in composing a more complicated data collection strategy, please refer to its documentation at <https://tweepy.readthedocs.io/en/latest/index.html>.
-
-If you want to use tweepy in your local computer, you need to install tweepy using on command prompt (if a windows user) or terminal (if a Mac or Linux user), as shown in the script below.
-
-```powershell
-pip install tweepy==4.13.0
-```
-
-> note: if you work on a Jupyter Notebook such as mybinder.org, we run the following code, as shown in the script below, to install a library.
-
-```powershell
-!pip install tweepy==4.13.0
-```
-
-Although we also work on the Jupyter Notebook, we do not need to manually install tweepy because Google Colab has automatically incorporate it into its preloaded libraries.
-
-To use the tweepy library, you need to register a Twitter developer account [here](https://developer.twitter.com/en/apply-for-access).
-
-![](img/twitter_dev.png)
-
-In order to register your account, you will be prompted to answer a series of questions. Please answer those that are required to fill in and you can ignore optional questions. Once you finish registering your account, you can apply for a Twitter app. First of all, you will need to click on `Developer Portal` which is located on the top right corner of the page.
-
-![](img/dev_acc.png)
-
-Then, you will enter developer portal. On the left bar, you can click on `Projects &  Apps` for checking the list of apps that you've created for getting Twitter API, but for now, the list should be empty. In order to register for Twitter API, click on `+ Create App` which is under the `Standalone Apps`.
-
-![](img/creat_app.png)
-
-You will be prompted to fill in the app details. Here, you are required to fill in: `App name`.
-
-![](img/app_details.png)
-
-After you fill in all the required fields, you may click on `Create`. Twitter takes some time to process your information to validate your access to the Twitter API. Then you will be able to see your keys and tokens.
-
-Once you are registered, you could check your own keys and tokens again by click on your app-name which is under your app list. Go to the `App Detail` of the app you just created. Click on the tab `Keys and tokens`, and you should be able to see all the keys and tokens required to use the Twitter API.
-
-![](img/app_keys.png)
-
-
-## 3.2 Initiating the API object
-
-As usual, we will import the needed libraries
-
-```python
-import tweepy
-import pandas as pd
-```
-
-Copy and paste the bearer token you received into corresponding parameters in the code below:
-
-```Python
-bearer_token = "AAAAAAAAAAAAAAAAAAAAAGI3lQEAAAAAmam79tkOTveGwINDgIICFGj3gV4%3DSHr2kNbdyMEPnEzIxBRShNdFd862b4LKUFCjNP3Uo9WdVJ4Bt5"
-client = tweepy.Client(bearer_token)
-```
-
-Initiate a tweepy API object
-
-```python
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth, wait_on_rate_limit=True)
-```
-
-Define the search term and the date_since date as variables. We will harvest all the tweets that contains the keyword "#BLM". Also, we took out the retweet and make sure they are all written in English.
-
-```python
-search_words = "BLM  -is:retweet lang:en"
-```
-
-## 3.3 Data Harvest
-
-Then, we input the parameters to the tweepy harvesting cursor, and we want to get back at most 1000 tweets for one single query.
-
-```python
-response = client.search_recent_tweets(
-    search_words,
-    max_results = 1000,
-    tweet_fields = ['author_id','created_at','text','lang','geo'],
-    expansions = ['geo.place_id', 'author_id'],
-    place_fields = ['place_type', 'geo']
-)
-
-# In this case, the data field of the Response returned is a list of Tweet objects
-tweets = response.data
-```
-
-We first create an empty array to store the retrieved data. As how we process each video in the first crawler we designed, we use the similar strategy to process each tweet, and store them in a pandas data frame.
-
-```python
-# create an array to store the result
-result = []
-
-# Iterate and print tweets
-for tweet in tweets:
-    row = {
-        'userid': tweet.author_id,
-        'lang': tweet.lang,
-        'created_at': str(tweet.created_at),
-        'text': tweet.text,
-        'geo': tweet.geo
-    }
-    result.append(row)
-    print(row)
-
-# Store the results as a pandas dataframe
-df = pd.DataFrame(result)
-
-# notify the completion of the crawling in the console.
-print("the crawling task is finished.")
-```
-
-In the end, we can store the tweets as a csv file to Google drive or download to the local computer.
-
-```python
-# Create data on to Google Drive
-from google.colab import drive
-# Mount your Drive to the Colab VM.
-drive.mount('/gdrive')
-  
-df.to_csv(output_file, index=False)
-
-
-# download the csv to your local computer
-from google.colab import files
-files.download(output_file)
-print("the csv has been downloaded to your local computer. The program has been completed successfully.")
-```
-
-## 4. Word cloud analysis
+## 3. Word cloud analysis
 
 A word cloud can visualize the high-frequency terms and map them according to their frequency. It helps to analyze the content of all the collected tweets. There are a few online word cloud generators you can use. In this lab, we use Word Art from https://wordart.com.
 
@@ -351,9 +217,9 @@ In order to reuse the word cloud, you need to download an image of this word clo
 A word cloud will help you understand what twitter users have talked during the collecting time period and within the specific crawling geographical region.
 
 
-## 5. Deliverable
+## 4. Deliverable
 
-You are expected to walk through this instruction, execute the two pieces of python scripts, and more importantly, develop your own crawler to collect some data from the web. Ideally, this data will be related to research question you have stated in your [statement of intent](../01_intro/soi.md).
+You are expected to walk through this instruction, execute the two pieces of python scripts, and more importantly, develop your own crawler to collect some data from the web. Ideally, this data will be related to research question you have stated in your statement of intent.
 
 To submit your deliverable, please create a new github repository, and submit the url of the GitHub to the **Canvas Dropbox** of this practical exercise. The file structure of this github repository should look like below.
 
@@ -361,9 +227,9 @@ To submit your deliverable, please create a new github repository, and submit th
 [your_repository]
     │readme.md
     ├─assets
-    │      twsearch-result-1.csv
-    │      twsearch-result-2.csv
-    │      twsearch-result-n.csv // the number n depends on how many locations you have explored.
+    │      ytsearch-result-1.csv
+    │      ytsearch-result-2.csv
+    │      ytsearch-result-n.csv // the number n depends on how many locations you have explored.
     ├─img
     |      wordcloud-1.png
     |      wordcloud-2.png
@@ -372,7 +238,7 @@ To submit your deliverable, please create a new github repository, and submit th
 
 Here are the grading criteria:
 
-1\. Execute both `youtube.py` and `tweets.py` with different keywords, and save the results to `videos.csv` and `tweets.csv` in the `assets` folder of the newly-created repository. (POINT 5 for each)
+1\. Execute both `youtube.py` with different keywords, and save the results to `videos.csv` in the `assets` folder of the newly-created repository. (POINT 5 for each)
 
 2\. Develop a web crawler to harvest data from a website other than Youtube. This python script should save in the root of the repository. (POINT 15)
 

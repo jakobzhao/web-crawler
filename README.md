@@ -2,23 +2,25 @@
 
 **Author:** Bo Zhao, 206.685.3846 or zhaobo@uw.edu; **Points Available** = 50
 
-In this lab, we will introduce how to collect Twitter data using a web crawler. A web crawler is a purposely designed bot for online data collection. In most cases, online data can be acquired through a dedicated API maintained by the data provider. If no API available, you can still collect data by developing crawler using a crawler library (e.g. Selenium, Scrapy, etc.). In this practical exercise, we will design two crawlers, one is a generic crawler to harvest data from youtube, and the other can harvest data from Twitter API. Okay, let us get started!
+In this lab, we will introduce how to collect data using a web crawler. A web crawler is a purpose-built bot for online data collection. In most cases, online data can be acquired through a dedicated API maintained by the data provider. If no API is available, you can still collect data by developing a crawler using a library such as Selenium or Scrapy. In this practical exercise, we will design a generic crawler that harvests video metadata from YouTube, and then you will develop your own crawler for a website of your choice. Let us get started.
 
 ## 1. Setup the Execution Environment on the Cloud
 
-If you have used python for scientific research before, you must already experience the complexity of configuring the execution environment. So, in order not to simplify the process of environment configuration, we decide to execute the crawlers on Google Colab. Google Colab allows its user to compose and execute arbitrary python code directly through the browser, and is especially well suited to machine learning, data analysis and education. There is an embedded Jupyter notebook that requires no setup and has an excellent free version, which gives free access to Google computing resources such as GPUs and TPUs.
+If you have used python for scientific research before, you already know how fiddly it is to configure an execution environment. To keep the setup light, we run the crawler on **Google Colab**. Colab lets you compose and execute arbitrary python code directly through the browser, and is especially well suited to machine learning, data analysis, and education. It ships with a hosted Jupyter notebook that requires no setup and gives free access to Google compute (including GPUs and TPUs).
 
-## 2. Develop a generic Youtube crawler using Selenium
+## 2. Develop a generic YouTube crawler using Selenium
 
-This section will walk you through the process of making a generic web crawler. This crawler manipulates a browser using a python library named "Selenium". This library enables the crawler mimic how a human user visits and/or interacts with web pages. While viewing the web pages, the crawler monitors the data flows, parses the html structure, and extracts the requested data items. Below, we will introduce how to design a crawler to collect information from a group of youtube videos.
+This section walks through the process of making a web crawler that scrapes YouTube search results. The crawler uses **Selenium** to drive a real (headless) browser so that JavaScript has time to render the video cards, and **BeautifulSoup** to extract the fields we care about.
 
-Please launch the youtube crawler script by clicking this button [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jakobzhao/web-crawler/blob/master/youtube.ipynb). This button will enable you to open the file [youtube.ipynb](youtube.ipynb) on Google Colab.
+> **Why Selenium and not `requests`?** YouTube's search page is rendered by JavaScript *after* the HTML arrives — `requests.get(url).text` returns an almost empty shell. We need a real browser to execute the scripts and reveal the video cards.
 
-For any python script, metadata are usually stated at the very beginning.
+Please launch the YouTube crawler by clicking this button [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jakobzhao/web-crawler/blob/master/youtube.ipynb). This opens [youtube.ipynb](youtube.ipynb) in Google Colab.
+
+For any python script, metadata is usually stated at the top:
 
 ```python
 # created on April 14, 2021
-# modified on Jan 2, 2022
+# last revised on April 23, 2026
 # @author:          Bo Zhao
 # @email:           zhaobo@uw.edu
 # @website:         https://hgis.uw.edu
@@ -26,228 +28,190 @@ For any python script, metadata are usually stated at the very beginning.
 # @description:     A demo of collecting data from YouTube.
 ```
 
-The normal operation of Selenium requires the support of a browser in the local computer. Since we move the execution environment to the cloud, it is necessary to ensure the cloud side (Google CoLab in our case) can manipulate the browser. To do so, you plan to use Kora to control Selenium. Kora is a collection of tools to make programming on Google Colab easier. One tool of Kora is to control Selenium. The following line will enable the python program to install kora.
+### 2.1 Install Google Chrome on the Colab VM
 
-```Python
-# Installing Kora to the remote google colab server. Kora is a collection of tools to make programming on Google Colab easier.
-!pip install kora -q
-```
+Selenium needs a real browser binary. We install **Google Chrome Stable** directly from Google's official `.deb`, and let **Selenium Manager** (built into Selenium ≥ 4.15) auto-download a matching `chromedriver` the first time `webdriver.Chrome()` is called. This avoids the two traps that break older tutorials:
 
-Next, the required python libraries for this crawler will be imported. To execute the crawling task, we will use BeautifulSoup, time, datetime, pandas. Since Google Colab has already pre-installed BeautifulSoup and pandas, you do not need to install again like how you install kora.
-
-```Python
-from bs4 import BeautifulSoup
-import time, datetime
-import pandas as pd
-# A bot can automate the collecting data process. A bot will imitate how an user browse a web page, and then acquire those useful information.
-# For more information about how to operate a bot, please refer to the documentation of Selenium at https://selenium-python.readthedocs.io/
-from kora.selenium import wd as bot
-```
-
-We plan to order the youtube crawler to harvest the information of videos relevant to a keyword "Standing Rock". By studying how to search youtube videos using keyword, we find out that the expected videos can be visited by the url `https://www.youtube.com/results?search_query=standing+rock`. So a variable url is created to store the url. And next, we will use the bot to visit this url.
-
-```Python
-# The url where the data will be collected from.
-url = "https://www.youtube.com/results?search_query=standing+rock"
-# Input the targeting url to the bot, and the bot will load data from the url.
-bot.get(url)
-```
-
-![](img/standingrock-browser.png)
-
-Declare global variables and assign initial values.
-
-```Python
-# An array to store all the video urls. If a video has been crawled, it would not be stored to the data frame.
-video_urls = []
-# An array to store the retrieved video details.
-results = []
-```
-
-In order to harvest the information from all the videos on the visited web page, you need to keep scrolling down the page. To stop, you can scroll a few times or detect whether you reach the bottom of the page or not. For each scroll, please ask your bot take some rest, and then resume to work.
-
-```Python
-
-# variable i indicates the number of times that scrolls down a web page. In practice, you might want to develop different
-# interaction approach to load and view the web pages.
-
-for i in range(5):
-    ... ...
-    ... ...
-    ... ...
-    # it is very important to enable the bot take some rest, and then resume to work.
-    time.sleep(5)
-    # Let the bot scrolls down to the bottom of the content element, most of the time the bot needs to scroll down to the bottom of the page.
-    # like this statement: bot.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    bot.execute_script('window.scrollTo(0,  document.getElementById("content").scrollHeight);')
-```
-
-In each scroll, the crawler will only parse the newly appeared videos. So, based on the testing, we find that each scroll will retrieve no more than 20 videos. To develop the locating strategy, we can use Chrome's Inspector to visually explore the elements of the opened web page and its corresponding source code.
-
-In the inspector, you can find the HTML features of each video. For example, we find that the tag name of a video element is `ytd-video-renderer`, and each video element is also in the class of  `style-scope ytd-item-section-renderer`.
-
-![](img/inspector-standingrock.png)
-
-> **Note:** To open an inspector on Chrome, you can right click on the displaying web page. On the pop-up dropdown menu, click `Inspect`, and then the inspector will show up.
-
-![](img/inspector-menu.png)
-
-To locate a certain attribute of HTML element, you will need to use the syntax of beautiful soup. Beautiful Soup is also very important for destructuring html pages. Beautiful Soup is a Python library for pulling data out of HTML and XML files. It provides idiomatic ways of navigating, searching, and modifying the parse tree. If you are not familiar with Beautiful Soup, please go over the [`Quick Start` section of this documentation](https://www.crummy.com/software/BeautifulSoup/bs4/doc/#quick-start).
-
-```Python
-# Create a document object model (DOM) from the raw source of the crawled web page.
-# Since you are processing a html page, 'html.parser' is chosen.
-soup = BeautifulSoup(bot.page_source, 'html.parser')
-
-# Capture all the video items using find_all or findAll method.
-# To view the information of the html elements you want to collect, you need to inspect the raw source using Chrome Inspector.
-videos = soup.find_all('ytd-video-renderer', class_="style-scope ytd-item-section-renderer")[-20:] # 20 indicates only process the newly-acquired 20 entries.
-```
-
-Then, you will process each video in the video list. I prefer use the "try-except" statement to enable the program run without pausing due to unexpected errors.
+- `apt-get install chromium` returns *"Package chromium is not available"* on Colab's Ubuntu 22.04. The distro redirects `chromium` to snap, and snap does not work inside Colab's container.
+- Manually downloading `chromedriver_linux64.zip` from `chromedriver.storage.googleapis.com` pins an ancient version that will not match the Chrome you just installed — that is exactly how you get `DevToolsActivePort file doesn't exist` at startup.
 
 ```python
-for video in videos:
+# 1. Install Google Chrome from Google's official .deb.
+!apt-get -qq update
+!wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+!apt-get install -y ./google-chrome-stable_current_amd64.deb
+!rm -f google-chrome-stable_current_amd64.deb
 
-    # I prefer use the "try-except" statement to enable the program run without pausing due to unexpected errors.
-    try:
-        ... ...
-        ... ...
-    except:
-        pass
+# 2. Install the Python libraries. Selenium >= 4.15 ships a reliable Selenium Manager,
+#    which auto-downloads a matching chromedriver the first time webdriver.Chrome() runs.
+!pip install -q "selenium>=4.15" beautifulsoup4 pandas
+
+# 3. Sanity check — should print something like "Google Chrome 147.0.x".
+!google-chrome --version
 ```
 
-For each video, we will extract the needed attributes, such as the video url, user url, username, title, number of views, the time when the video was created, short desc of the video, and when the video record was collected by the crawller.
+### 2.2 Configure the task
+
+Keep every knob you might want to change in one block at the top of the notebook. The scraping code reads from these variables, so you can rerun against a new search term without touching the logic below.
+
+| Variable       | Meaning                                                                              |
+| -------------- | ------------------------------------------------------------------------------------ |
+| `QUERY`        | the search keywords                                                                  |
+| `MAX_ITEMS`    | stop after collecting this many unique videos                                        |
+| `MAX_SCROLLS`  | safety cap — give up after this many scrolls even if we did not reach `MAX_ITEMS`    |
+| `SCROLL_PAUSE` | seconds to wait after each scroll for new cards to load                              |
+| `HEADLESS`     | must stay `True` on Colab (there is no display); set `False` only if you run locally |
+| `OUTPUT_PATH`  | where to save the CSV on Google Drive                                                |
 
 ```python
-video_url = video.find("a", class_="yt-simple-endpoint inline-block style-scope ytd-thumbnail").attrs["href"]
-user_url = video.find("a", class_="yt-simple-endpoint style-scope yt-formatted-string").attrs["href"]
-username = video.find("a", class_="yt-simple-endpoint style-scope yt-formatted-string").text
-title = video.find("yt-formatted-string", class_="style-scope ytd-video-renderer").text
-view_num = video.find_all("span", class_="style-scope ytd-video-meta-block")[0].text.replace(" views", "")
-created_at = video.find_all("span", class_="style-scope ytd-video-meta-block")[0].text.replace(" ago", "")
-shortdesc = video.find("yt-formatted-string", id="description-text").text
-collected_at = datetime.datetime.now()
+QUERY        = "standing rock"
+MAX_ITEMS    = 100
+MAX_SCROLLS  = 20
+SCROLL_PAUSE = 2.0
+HEADLESS     = True
+OUTPUT_PATH  = "/gdrive/My Drive/videos.csv"
 ```
 
-Once the attributes are collected, you will create a row in the dict format. And append this newly acquired row to the results array
+![YouTube search results page for "standing rock"](img/standingrock-browser.png)
+
+### 2.3 Helpers and the Chrome driver factory
+
+Before the main scraping loop we define three small helpers. Factoring them out keeps the loop readable and makes each piece easy to test or swap.
+
+**`parse_view_count("1.2K views") → 1200`**
+YouTube displays counts like `"3.4M views"` or `"1,203 views"`. We convert them to integers so pandas can sort and aggregate.
+
+**`parse_relative_time("3 years ago", anchor) → datetime`**
+YouTube only shows *relative* ages like `"2 weeks ago"`. We anchor them to the scrape timestamp, so the CSV stores absolute UTC times — far more useful downstream.
+
+**`build_driver(headless)`** centralises the Chrome options we always want on Colab:
+
+- `binary_location="/usr/bin/google-chrome"` — point Selenium at the Chrome we installed in §2.1.
+- `--headless=new` — the modern headless mode (Chrome 109+); the old `--headless` crashes on some pages.
+- `--no-sandbox` — required because Colab runs as root.
+- `--disable-dev-shm-usage` — **the fix for `DevToolsActivePort file doesn't exist`**. Colab's `/dev/shm` is tiny, and Chrome crashes when it tries to use it for renderer IPC.
+- `--disable-gpu` — no GPU in the container; saves a warning.
+- `--window-size=1280,1800` — give the page a real viewport so lazy-loaded cards render.
+- `--lang=en-US` — keep the DOM in English so our selectors and `"N views"` parsing stay consistent.
+
+See [youtube.ipynb](youtube.ipynb) **Step 3** for the full implementation.
+
+### 2.4 Scrape the search page
+
+The core loop lives in `scrape_youtube_search(query, ...)` in [youtube.ipynb](youtube.ipynb) **Step 4**. Five things worth understanding:
+
+1. **Wait for the first card, not a fixed sleep.** `WebDriverWait(...).until(EC.presence_of_element_located((By.CSS_SELECTOR, "ytd-video-renderer")))` returns the moment at least one video card appears. Blind `time.sleep(5)` is either too slow or too fast.
+2. **Scroll until the page stops growing.** We compare `document.documentElement.scrollHeight` before and after each scroll; when it no longer changes, YouTube has streamed all its results and we stop early. An older pattern like `for i in range(5)` never adapts to how many results actually exist.
+3. **Deduplicate with a `set`.** `if video_url in seen:` on a `set` is O(1); a list-based version is silently O(n²).
+4. **Catch narrow exceptions per card.** If one card has unexpected markup, log and skip — the other cards still land in the CSV. A bare `except: pass` also swallows `KeyboardInterrupt`, which makes debugging painful.
+5. **Always `driver.quit()` in `finally`.** Releases the Chrome process even if the loop raises. `driver.close()` only closes one tab and leaks the session.
+
+If YouTube changes its markup, `parse_card` is the **only** function you have to update. To find new selectors, open the live page in Chrome and use **Inspect** to explore the DOM. Right-click anywhere on the page and choose **Inspect** to open the developer tools.
+
+![Chrome right-click menu with the Inspect option highlighted](img/inspector-menu.png)
+
+In the inspector, each search result is a `ytd-video-renderer` element. Inside, you can see the anchor with `id="video-title"`, the channel link, the metadata spans for views and upload time, and the description snippet.
+
+![Chrome DevTools inspecting a ytd-video-renderer element on the results page](img/inspector-standingrock.png)
+
+> **Note.** We prefer stable anchors like `a#video-title` over deep-nested auto-generated class names such as `"yt-simple-endpoint inline-block style-scope ytd-thumbnail"`. The deep class lists look precise but change every few months, which is why scrapers written against them break silently.
+
+Running the scraper (the last cell of Step 4) returns a pandas DataFrame with:
+
+| column                          | description                                                |
+| ------------------------------- | ---------------------------------------------------------- |
+| `video_url`                     | canonical `https://www.youtube.com/watch?v=...` URL        |
+| `title`                         | video title                                                |
+| `user_url` / `username`         | channel link and display name                              |
+| `view_num` / `view_num_raw`     | parsed integer view count plus the raw string              |
+| `created_at` / `created_at_raw` | absolute UTC timestamp plus the raw `"3 years ago"` string |
+| `shortdesc`                     | snippet shown under the video title                        |
+| `collected_at`                  | UTC timestamp of the scrape (the anchor for `created_at`)  |
+
+### 2.5 Save the results to Google Drive
+
+Mount your Drive once per Colab session, then write the CSV. The file lands in **My Drive** — no extra `files.download(...)` step is needed; open it from the browser, share it with the class, or load it from another notebook.
 
 ```python
-row = {'video_url': video_url,
-        'user_url': user_url,
-        'username': username,
-        'title': title,
-        'view_num': view_num,
-        'created_at': created_at,
-        'shortdesc': shortdesc,
-        'collected_at': collected_at}
-
-
-if video_url in video_urls:
-    print("this video has already been added.")
-else:
-    print(row)
-    results.append(row)
-```
-
-To the end, you can terminate the bot when the task is completed
-
-```python
-# terminate the bot object.
-bot.close()
-```
-
-Store the results as a pandas dataframe.
-
-```python
-# Store the results as a pandas dataframe
-df = pd.DataFrame(results)
-
-# notify the completion of the crawling in the console.
-print("the crawling task is finished.")
-```
-
-Since the script is executed on Google Colab, we will store the data as a csv spreadsheet directly in Google Drive.
-
-```python
-# Create data on to Google Drive
 from google.colab import drive
-# Mount your Drive to the Colab VM.
-drive.mount('/gdrive')
-
-# the file path where to store the output csv on google drive
-output_file = '/gdrive/My Drive/videos.csv'
-
-# Save the dataframe as a csv file
-df.to_csv(output_file, index=False)
+drive.mount("/gdrive")
+df.to_csv(OUTPUT_PATH, index=False)
 ```
 
-When the csv is created successfully, you can download the csv file to your local computer.
+![CSV of collected records opened in a spreadsheet](img/tweet-csv.png)
+*Historical screenshot from the Twitter version of this lab; the new YouTube CSV has the columns listed in §2.4.*
 
-```python
-# download the csv to your local computer
-from google.colab import files
-files.download(output_file)
-print("the csv has been downloaded to your local computer. The program has been completed successfully.")
-```
+### 2.6 When to use the YouTube Data API v3 instead
 
-![](img/tweet-csv.png)
+Selenium scraping is great for *learning* how dynamic pages are rendered, but for real research work the official **YouTube Data API v3** is a stronger tool:
+
+- **Stable.** JSON from a documented endpoint, not HTML whose class names change every few months.
+- **Richer.** Exact view / like / comment counts, ISO-8601 timestamps, duration, language, category, thumbnails — no string parsing, no `"3 years ago"` approximations.
+- **Fast.** Up to 50 results per request, proper pagination via `nextPageToken`, no scrolling or `sleep`.
+- **Compliant.** YouTube's Terms of Service generally disallow scraping; API use is permitted under the standard quota (10,000 units per day is plenty for most classroom tasks).
+
+| Situation                                                                           | Use                                       |
+| ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| Learning how dynamic pages, the DOM, and browser automation work                    | **Selenium (this notebook)**              |
+| Quick one-off dataset for a class demo, small N                                     | Either — Selenium is faster to copy-paste |
+| Research paper, reproducible study, N in the thousands                              | **Data API v3**                           |
+| You need fields the rendered page does not show (exact likes, captions, categories) | **Data API v3**                           |
+
+For this class we stay with Selenium so you can see the full page-rendering pipeline — but keep the API in mind for your own projects. A sketch of the equivalent API workflow lives in the final cell of [youtube.ipynb](youtube.ipynb).
 
 ## 3. Word cloud analysis
 
-A word cloud can visualize the high-frequency terms and map them according to their frequency. It helps to analyze the content of all the collected tweets. There are a few online word cloud generators you can use. In this lab, we use Word Art from https://wordart.com.
+A word cloud visualises the high-frequency terms in a corpus and sizes them by frequency. It helps you get a quick sense of what the collected videos are about. There are several online word cloud generators; in this lab we use Word Art from https://wordart.com.
 
-After registration, you can create a word cloud by pressing the "Create Now" Button on the front page.
+After registration, create a word cloud by pressing **Create Now** on the front page.
 
-![](img/frontpage.png)
+![Word Art front page with the Create Now button](img/frontpage.png)
 
-Open `twsearch-result.csv` in microsoft excel or other alternative spreadsheet software. Copy all the rows under the `text` column, and then paste the copied rows to the input text box on Word Art. You need to press the `import` button on the top left to open this text box. Once complete, please type `Import words`.
+Open `videos.csv` (the file you saved in §2.5) in Microsoft Excel or any spreadsheet tool. Copy all the values from one of the text columns — `title` or `shortdesc` are the most informative — and paste them into the input text box on Word Art. You open the text box by pressing **Import** in the top-left. Once the text is pasted, press **Import Words**.
 
-![](img/import-box.png)
+![Word Art Import text box for pasting source words](img/import-box.png)
 
+You will now see a list of words in the left panel. **Delete the common or meaningless terms** (stopwords, YouTube boilerplate like `"official"`, `"video"`, etc.) — otherwise the cloud will be dominated by them. Then configure the rendering by adjusting shapes, fonts, layout, and style options. When you are happy with the options, press **Visualize** at the top of the main viewport. It takes a few seconds to render.
 
-Now you will see a list of words on the left panel, please makes sure to **delete those common terms or meaningless ones**, otherwise your word cloud will be full of meaningless terms. Then, you can configure the rendering process through adjusting the shapes, fonts, layout, and style options. After you determine all the options, please type `visualize` on top of the main viewport. It takes a few second to render the image. After that, you will see the word cloud.
+![Word Art Visualize button in the main toolbar](img/visualize.png)
 
-![](img/visualize.png)
+To reuse the cloud, press **Download** on the main toolbar and choose an image format (e.g. *Standard PNG*). The word cloud is then saved on your local drive.
 
-In order to reuse the word cloud, you need to download an image of this word cloud by pressing the `download` button on the main toolbar and then choose the image format, like `Standard PNG`. Then, the word cloud will be saved on your local drive for reuse.
+![Example word cloud rendered from collected video titles](img/wordcloud.png)
 
-![](img/wordcloud.png)
-
-A word cloud will help you understand what twitter users have talked during the collecting time period and within the specific crawling geographical region.
-
+A word cloud helps you understand what the collected videos talked about during the period you crawled and within the specific keyword space.
 
 ## 4. Deliverable
 
-You are expected to walk through this instruction, execute the two pieces of python scripts, and more importantly, develop your own crawler to collect some data from the web. Ideally, this data will be related to research question you have stated in your statement of intent.
+You are expected to walk through this instruction, execute the crawler notebook, and — more importantly — develop your own crawler to collect some data from the web. Ideally, this data will be related to the research question you have stated in your statement of intent.
 
-To submit your deliverable, please create a new github repository, and submit the url of the GitHub to the **Canvas Dropbox** of this practical exercise. The file structure of this github repository should look like below.
+To submit your deliverable, create a new github repository and submit its URL to the **Canvas Dropbox** of this practical exercise. The file structure should look like this:
 
 ```powershell
 [your_repository]
     │readme.md
     ├─assets
-    │      ytsearch-result-1.csv
-    │      ytsearch-result-2.csv
-    │      ytsearch-result-n.csv // the number n depends on how many locations you have explored.
+    │      videos-1.csv
+    │      videos-2.csv
+    │      videos-n.csv   // n depends on how many keywords or locations you explored.
     ├─img
     |      wordcloud-1.png
     |      wordcloud-2.png
-    |      wordcloud-n.png  // the number n depends on how many locations you have explored.
+    |      wordcloud-n.png
 ```
 
-Here are the grading criteria:
+Grading criteria:
 
-1\. Execute both `youtube.py` with different keywords, and save the results to `videos.csv` in the `assets` folder of the newly-created repository. (POINT 5 for each)
+1. Run [youtube.ipynb](youtube.ipynb) with **at least two different keywords**, and save each run's output to the `assets/` folder of your repository. (POINT 5 each, 10 total)
 
-2\. Develop a web crawler to harvest data from a website other than Youtube. This python script should save in the root of the repository. (POINT 15)
+2. Develop a web crawler that harvests data from a website **other than YouTube**. The script should sit at the root of your repository. For inspiration, the [backup/](backup/) folder of this repo contains legacy Twitter and geosearch examples (`tweets.ipynb`, `geosearch.py`, `01_twsearch.py`, …). Those rely on APIs and libraries that have since changed — treat them as reference, not copy-paste. (POINT 15)
 
-1.  Export the two or more word clouds to the repository and then insert them to the `readme.md`.  (POINT 10)
+3. Export two or more word clouds to the repository and embed them in `readme.md`. (POINT 10)
 
-4\. Export a sample of the results to the `assets` folder of the repository. (POINT 5)
+4. Export a sample of the results to the `assets/` folder of your repository. (POINT 5)
 
-5\. In the `readme.md` file, write an instruction to introduce the crawler and its usages. You can refer to  [https://github.com/shawn-terryah/Twitter_Geolocation](https://github.com/shawn-terryah/Twitter_Geolocation). (POINT 10)
+5. In `readme.md`, write an instruction that introduces the crawler and its usage. See [Shawn Terryah's Twitter_Geolocation repo](https://github.com/shawn-terryah/Twitter_Geolocation) for a reference structure. (POINT 10)
 
 ## Acknowledgement
 
-I want to express my gratitude to Jou Ho who provided me research assistance on developing this assignment. The usual disclaims apply.
+I want to express my gratitude to Jou Ho who provided research assistance on developing this assignment. The notebook and README were modernized in April 2026 to work with the current Colab environment (Google Chrome Stable + Selenium Manager) and to point to the YouTube Data API v3 as an alternative. The usual disclaims apply.
